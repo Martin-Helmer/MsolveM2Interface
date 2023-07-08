@@ -172,8 +172,6 @@ peek oo
 time realSolutions(I,Output=>"float")
 
 
-
-
 S = QQ[t12,t13,t14,t23,t24,t34]
 S = ZZ/1073741827[t12,t13,t14,t23,t24,t34]
 I = ideal(
