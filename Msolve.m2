@@ -5,7 +5,7 @@ newPackage(
     	Authors => {{Name => "Martin Helmer", 
 		  Email => "mhelmer@ncsu.edu", 
 		  HomePage => "http://martin-helmer.com/"}},
-    	Headline => "An interface to the msolve package which computes Groebner Basis and does real root isolation",
+    	Headline => "An interface to the msolve package (https://msolve.lip6.fr/) which computes Groebner Basis and does real root isolation",
     	DebuggingMode => false,
 	Configuration => {"msolveBinaryFolder"=>"~/msolve-v0.5.0"},
 	PackageImports=>{"Elimination","PrimaryDecomposition","Saturation","SegreClasses"}
