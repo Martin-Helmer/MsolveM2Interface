@@ -1,7 +1,7 @@
 newPackage(
 	"Msolve",
-	Version => "1.2", 
-    	Date => "August 6, 2023",
+	Version => "1.21", 
+    	Date => "September 2, 2023",
     	Authors => {{Name => "Martin Helmer", 
 		  Email => "mhelmer@ncsu.edu", 
 		  HomePage => "http://martin-helmer.com/"}},
@@ -21,6 +21,13 @@ export{
     "leadingMonomials",
     "Output"
     }
+readMsolveOutput=method(TypicalValue=>Matrix);
+readMsolveOutput(String):=(msolveOut)->(
+    moutStrL:=separate(",",first separate("[]]",last separate("[[]",msolveOut)));
+    --the line below should be replaced by a call to the C-function to parse the string
+    M2Out:=for s in moutStrL list value(s);
+    return matrix {M2Out};
+    );
 inputOkay=method(TypicalValue=>Boolean);
 inputOkay(Ideal):=I->(
     R:=ring I;
@@ -55,9 +62,7 @@ grobBasis(Ideal):=(I)->(
     mOut:=temporaryFileName()|".ms";
     callStr:=msolvePath|"/msolve -t "|toString(max(maxAllowableThreads,allowableThreads))|" -g 2 -f "|mIn|" -o "|mOut;
     run(callStr);
-    moutStrL:=separate(",",first separate("[]]",last separate("[[]",get(mOut))));
-    M2Out:=for s in moutStrL list value(s);
-    msolGB:=matrix {M2Out};
+    msolGB:=readMsolveOutput(get(mOut));
     return gens forceGB msolGB;
     );
 leadingMonomials=method(TypicalValue=>Matrix);
@@ -77,9 +82,7 @@ leadingMonomials(Ideal):=(I)->(
     mOut:=temporaryFileName()|".ms";
     callStr:=msolvePath|"/msolve -t "|toString(max(maxAllowableThreads,allowableThreads))|" -g 1 -f "|mIn|" -o "|mOut;
     run(callStr);
-    moutStrL:=separate(",",first separate("[]]",last separate("[[]",get(mOut))));
-    M2Out:=for s in moutStrL list value(s);
-    msolGB:=matrix {M2Out};
+    msolGB:=readMsolveOutput(get(mOut));
     return gens forceGB msolGB;
     );
 eliminationIdeal=method(TypicalValue=>Matrix);
@@ -112,9 +115,9 @@ eliminationIdeal(Ideal,List):=(J,elimvars)->(
     mOut:=temporaryFileName()|".ms";
     callStr:=msolvePath|"/msolve -t "|toString(max(maxAllowableThreads,allowableThreads))|" -e "|toString(elimNum)|" -g 2 -f "|mIn|" -o "|mOut;
     run(callStr);
-    moutStrL:=separate(",",first separate("[]]",last separate("[[]",get(mOut))));
-    M2Out:=for s in moutStrL list value(s);
-    msolGB:=sub(selectInSubring(elimNum,matrix {M2Out}),S);
+    M2Out:=readMsolveOutput(get(mOut));
+    msolGB:=sub(selectInSubring(elimNum,M2Out),S);
+    use S;
     return gens forceGB msolGB;
     );
 
@@ -135,9 +138,7 @@ saturateByPoly(Ideal,RingElement):=(I,f)->(
     mOut:=temporaryFileName()|".ms";
     callStr:=msolvePath|"/msolve -f "|mIn|" -S -g 2 -o "|mOut;
     run(callStr);
-    moutStrL:=separate(",",first separate("[]]",last separate("[[]",get(mOut))));
-    M2Out:=for s in moutStrL list value(s);
-    msolGB:=matrix {M2Out};
+    msolGB:=readMsolveOutput(get(mOut));
     return gens forceGB msolGB;
     );
 
@@ -158,7 +159,8 @@ realSolutions(Ideal):=opts->(I)->(
     mOut:=temporaryFileName()|".ms";
     callStr:=msolvePath|"/msolve -t "|toString(max(maxAllowableThreads,allowableThreads))|" -f "|mIn|" -o "|mOut;
     run(callStr);
-    mOutStr:=replace("[]]","}",replace("[[]","{",(separate("[:]",get(mOut)))_0));
+    outStrFull:=get(mOut);
+    mOutStr:=replace("[]]","}",replace("[[]","{",(separate("[:]",outStrFull))_0));
     solsp:=value(mOutStr);
     if solsp_0>0 then (print "Input ideal not zero dimensional, no solutions found."; return 0;);
     if (solsp_1)_0>1 then (print "unexpected msolve output, returning full output"; return solsp;);
@@ -201,7 +203,7 @@ rUR(Ideal):=(I)->(
     RUR#"findRootsUniPoly"=W;
     RUR#"denominator"=diff(T,W);
     vs:=last para;
-    RUR#"numerator"=append(for f in vs list sum((f_0)_0+1,i->T^i*((f_0)_1)_i),T);
+    RUR#"numerator"=append(for f in vs list sum((f_0)_0+1,i->T^i*((f_0)_1)_i),-T*diff(T,W));
     return new HashTable from RUR;
     );
 
@@ -224,6 +226,8 @@ Node
 	      For zero dimensional polynomial ideals, with integer or rational coefficents, there are functions to compute all real solutions, and to compute a rational univariante representation of all (complex) solutions.
 	      
 	      The M2 interface assumes that the binary executable is named "msolve", to tell the M2 package where to find the executable you should use either needsPackage("Msolve", Configuration=>{"msolveBinaryFolder"=>"path_to_folder_with_msolve_binary"}), or installPackage("Msolve", Configuration=>{"msolveBinaryFolder"=>"path_to_folder_with_msolve_binary"}) once and needsPackage("Msolve") on subsequent usages; here "path_to_folder_with_msolve_binary" denotes the folder where your msolve exectuable is saved. E.g. if your msolve binary (named msolve) is in a folder called msolve-v0.5.0 in your home directory then you would use either needsPackage("Msolve", Configuration=>{"msolveBinaryFolder"=>"~/msolve-v0.5.0"}) or installPackage("Msolve", Configuration=>{"msolveBinaryFolder"=>"~/msolve-v0.5.0"}) and needsPackage("Msolve") subseqently   
+	      
+	      
 	      References:
 	      [1] msolve: https://msolve.lip6.fr/
 	      
@@ -342,6 +346,129 @@ Node
 	    sols=realSolutions(I)
 	    floatSolsInterval=realSolutions(I,Output=>"floatInterval")
 	    floatAproxSols=realSolutions(I,Output=>"float")
+Node 
+    Key
+    	rUR
+	(rUR, Ideal)
+    Headline
+    	Uses symbolic methods to compute the rational univariate representation of a zero dimentional polynomial system.
+    Usage
+    	rUR(I)
+    Inputs
+    	I:Ideal
+	    a zero dimensional ideal in a polynomial ring with either rational or integer coefficents. 
+    Outputs
+        RUR:HashTable
+	    a HashTable with 6 keys giving the rational univariate representation of I.     
+    Description 
+        Text
+    	    This functions uses the msolve package to compute the rational univariate representation (RUR) of a zero dimensional polynomial ideal with either integer or rational coefficents.
+	    
+	    The RUR gives a parametization for all complex solutions to the input system. For a complete definition of the RUR see the paper: Rouillier, Fabrice (1999). "Solving Zero-Dimensional Systems Through the Rational Univariate Representation". Appl. Algebra Eng. Commun. Comput. 9 (9): 433–461.
+	    
+	    If I is a zero dimensional ideal in QQ[x_1..x_n] then the RUR is given by:
+	    
+	    (x_1,..,x_n)={ (-v_1(T)/w'(T), .. , -v_n(T)/w'(T)) | w(T)=0}
+	    
+	    The output is a hash table with 6 keys. 
+	    
+	    The key "degree" is the number of solutions to I, counted with multiplcity. 
+	    
+	    The key "findRootsUniPoly" gives the polynomial w(T) above.
+	    
+	    The key "denominator"  gives the polynomial w'(T), which is the dirivitive of w(T) and is the denominator of each coordinate above.
+	    
+	    The key "numerator" gives a list {v_1(T), .. , v_n(T)} of length n above, with n the number of variables, where the polynomial v_i(T) gives the numerator of the ith coordinate.
+	    
+	    The key "var" gives the variable name in the univariate polynomial ring; by defualt this is: T.
+	    
+	    The key "T" gives the linear relation between the variables of the ring of I and the single variable, which is denoted T above.
+	    
+    	Text
+	    A simple example, where the input ideal is zero dimensional and radical.
+	Example
+	    n=3
+	    R=QQ[x_1..x_n]
+	    f = (x_1-1)
+	    g = (x_2-2)
+	    h=(x_3^2-9)
+	    I = ideal (f,g,h)
+	    decompose I
+	    rur=rUR(I)
+	    factor rur#"findRootsUniPoly"
+	    sols=-1*(rur#"numerator")	    
+	    denom= rur#"denominator"
+	    (for s in sols list sub(s,T=>3))/sub(denom,T=>3)
+	    (for s in sols list sub(s,T=>-3))/sub(denom,T=>-3)	    
+	Text
+	    In cases where the input ideal has dimension greater than zero an error will be returned.     
+
+Node 
+    Key
+    	saturateByPoly
+	(saturateByPoly, Ideal,RingElement)
+    Headline
+    	Computes a Groebner basis for the saturation of an ideal by a single polynomial in GrevLex order; only works over a finite feild.
+    Usage
+    	saturateByPoly(I)
+    Inputs
+    	I:Ideal
+	    an ideal in a polynomial ring with GrevLex order and finite feild coefficents. The finite feild must have charcterisitc between 2^16 and 2^32. 
+	f:RingElement
+	    a polynomial in the same ring as I.    
+    Outputs
+        GB:Matrix
+	    a matrix whose columns form a Groebner basis for the ideal I:f^\infty, in the GrevLex order.    
+    Description 
+        Text
+    	    This functions uses the saturation implmentation in the msolve package to compute a Groebner basis, in GrevLex order, of I:f^\infty, that is of the saturation of the ideal I by the principal ideal generated by the polynomial f.
+    	Text
+	    First an example; note the ring must be a polynomial ring over a finite feild
+	Example
+	    R=ZZ/1073741827[z_1..z_3]
+	    I=ideal(z_1*(z_2^2-17*z_1-z_3^3),z_1*z_2)
+	    satMsolve=ideal saturateByPoly(I,z_1)
+	    satM2=saturate(I,z_1)	    	    
+Node 
+    Key
+    	eliminationIdeal
+	(eliminationIdeal, Ideal,List)
+	(eliminationIdeal, List,Ideal)
+	(eliminationIdeal, Ideal,RingElement)
+    Headline
+    	Computes the elimination ideal of a given ideal.
+    Usage
+    	eliminationIdeal(I,elimVars)
+    Inputs
+    	I:Ideal
+	    an ideal in a polynomial ring with rational or finite feild coefficents. If working over a finite feild, it must have charcterisitc between 2^16 and 2^32. 
+	elimVars:List
+	    a list of variables in the same ring as I, these variables will be eliminated.    
+    Outputs
+        GB:Matrix
+	    a matrix whose columns are generators for the elimination ideal.    
+    Description 
+        Text
+    	    This function takes as input a polynomial ideal and computes the elimination ideal given by eliminating the variables specified in the inputed list. 
+    	Text
+	    First an example over the rationals. 
+	Example
+	    R = QQ[x,a,b,c,d]
+	    f = 7*x^2+a*x+b
+	    g = 2*x^2+c*x+d
+	    M2elim=eliminate(x,ideal(f,g))
+	    Msolveelim=ideal eliminationIdeal(x,ideal(f,g))
+	    M2elim==Msolveelim    
+	Text
+	    We can also work over a finite feild. 
+	Example 
+	    R = ZZ/1073741827[x,y,a,b,c,d]
+	    f = c*x^2+a*x+b*y^2+d*x*y+y
+	    g =diff(x,f)
+	    h=diff(y,f)
+	    M2elim=eliminate({x,y},ideal(f,g,h))
+	    Msolveelim=ideal eliminationIdeal({x,y},ideal(f,g,h))
+	    M2elim==Msolveelim 	    
 ///	      
 	      
 TEST ///
@@ -351,39 +478,24 @@ TEST ///
     installPackage "Msolve"
 *-
 
-R=ZZ/1073741827[x,y]
-R=QQ[x,y]
-n=2
-f = product(n,i->x-i)
-g = product(n,i->y-1/(i+1))
-I = ideal (f,2*g)
-grobBasis(I)
-groebnerBasis I
-leadingMonomials I
-time realSolutions(I)
-rur= time rUR(I)
-peek oo
-time realSolutions(I,Output=>"float")
+R=QQ[x,y];
+n=2;
+I = ideal ((x-3)*(x^2+1),y-1);
+sols=realSolutions(I,Output=>"float");
+assert(sols=={{3.0,1.0}});
 
+S = ZZ/1073741827[t12,t13,t14,t23,t24,t34];
+I = ideal((t13*t12-t23)*(1-t14)+(t14*t12-t24)*(1-t13) - (t12+1)*(1-t13)*(1-t14), (t23*t12-t13)*(1-t24)+(t24*t12-t14)*(1-t23) - (t12+1)*(1-t23)*(1-t24), (t14*t34-t13)*(1-t24)+(t24*t34-t23)*(1-t14) - (t34+1)*(1-t14)*(1-t24));
+sat=(1-t24);
+J1= saturate(I,sat);
+J2=ideal saturateByPoly(I,sat);
+assert(J1==J2);
 
-S = QQ[t12,t13,t14,t23,t24,t34]
-S = ZZ/1073741827[t12,t13,t14,t23,t24,t34]
-gens S
-I = ideal(
-(t13*t12-t23)*(1-t14)+(t14*t12-t24)*(1-t13) - (t12+1)*(1-t13)*(1-t14), 
-(t23*t12-t13)*(1-t24)+(t24*t12-t14)*(1-t23) - (t12+1)*(1-t23)*(1-t24), 
-(t14*t34-t13)*(1-t24)+(t24*t34-t23)*(1-t14) - (t34+1)*(1-t14)*(1-t24));
-
-sat=(1-t24)
-J1= saturate(I,sat)
-J2=ideal saturateByPoly(I,sat)
-J1==J2
-
-R = ZZ/1073741827[x,a,b,c,d]
-f = x^2+a*x+b
-g = x^2+c*x+d
-time eliminate(x,ideal(f,g))
-time eliminationIdeal(x,ideal(f,g))
-time eliminationIdeal(ideal(f,g),x)
+R = QQ[x,a,b,c,d];
+f = x^2+a*x+b;
+g = x^2+c*x+d;
+eM2=eliminate(x,ideal(f,g));
+eMsolve=ideal eliminationIdeal(x,ideal(f,g));
+assert(eM2==eMsolve);
 
 ///
